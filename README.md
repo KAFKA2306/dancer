@@ -19,16 +19,52 @@
 - 開発環境: VSCode
 - データ管理: SQLiteデータベース、ファイルシステム
 - クラウドインフラ: AWS、GCP
+- 動画生成: MMD (MikuMikuDance)、Unity
 
 ## セットアップ
 1. リポジトリをクローンします。
 2. 必要な依存関係をインストールします。
+   - Python 3.x
+   - pymeshio
+   - PyYAML
+   - google-api-python-client
+   - google-auth-oauthlib
+   - google-auth-httplib2
+   - apscheduler
+   - slack-sdk
 3. MMDとUnityの環境を設定します。
+   - MMDのインストールとパスの設定
+   - Unityのインストールとプロジェクトの設定
 4. Google Cloud ConsoleでYouTube APIの認証情報を取得します。
-5. 設定ファイルに必要な情報を記入します。
+5. Slack APIの認証情報を取得します。
+6. 設定ファイル (`config.yaml`) を編集し、必要な情報を記入します。
+   - YouTube APIの認証情報
+   - Slack APIの認証情報
+   - データベースのパス
+   - ログファイルのパス
+   - MMDとUnityのパス
 
 ## 使用方法
-1. パラメータ選択の設定を行います。
-2. 動画生成の設定を行います。
-3. 投稿スケジュールを設定します。
-4. メインスクリプトを実行します。
+1. パラメータ選択の設定を `parameters.yaml` ファイルで行います。
+2. 動画生成の設定を `config.yaml` ファイルで行います。
+3. 投稿スケジュールを `config.yaml` ファイルで設定します。
+4. メインスクリプト (`main.py`) を実行します。
+
+```bash
+python main.py
+```
+
+## ディレクトリ構造
+```
+├── main.py
+├── parameter_selection.py
+├── video_generation.py
+├── youtube_upload.py
+├── database.py
+├── error_handling.py
+├── config.yaml
+├── parameters.yaml
+├── credentials.json
+├── requirements.txt
+└── README.md
+```
