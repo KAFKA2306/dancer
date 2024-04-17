@@ -1,0 +1,19 @@
+avatars:
+  - 'path/to/avatar1.pmx'
+  - 'path/to/avatar2.pmx'
+  - 'path/to/avatar3.pmx'
+
+motions:
+  - 'path/to/motion1.vmd'
+  - 'path/to/motion2.vmd'
+  - 'path/to/motion3.vmd'
+
+music:
+  - 'path/to/music1.mp3'
+  - 'path/to/music2.mp3'
+  - 'path/to/music3.mp3'
+
+backgrounds:
+  - 'path/to/background1.jpg'
+  - 'path/to/background2.jpg'
+  - 'path/to/background3.jpg'
