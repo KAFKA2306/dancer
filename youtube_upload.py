@@ -1,38 +1,15 @@
-# youtube_upload.py
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaFileUpload
+"""Simplified YouTube upload stub.
 
-def upload_video(video_path):
-    # YouTube APIを使用して動画をアップロードするロジックを実装
-    credentials = Credentials.from_authorized_user_file('credentials.json', ['https://www.googleapis.com/auth/youtube.upload'])
-    youtube = build('youtube', 'v3', credentials=credentials)
+The original project was intended to upload to YouTube via the official API.
+For the purposes of this kata we replace that behaviour with a stub that
+simply returns a unique identifier based on :mod:`uuid`.
+"""
+import uuid
+from typing import Optional
 
-    request_body = {
-        'snippet': {
-            'title': 'Generated Dance Video',
-            'description': 'This video was automatically generated.',
-            'tags': ['dance', 'mmd', 'unity', 'avatar'],
-            'categoryId': '22'
-        },
-        'status': {
-            'privacyStatus': 'public'
-        }
-    }
 
-    media = MediaFileUpload(video_path)
-
-    try:
-        response = youtube.videos().insert(
-            part='snippet,status',
-            body=request_body,
-            media_body=media
-        ).execute()
-
-        video_id = response['id']
-        return video_id
-
-    except HttpError as e:
-        print(f'An error occurred: {e}')
-        return None
+def upload_video(video_path: str) -> Optional[str]:
+    """Pretend to upload ``video_path`` and return a fake video id."""
+    # In a real implementation we would use the Google API client here.
+    # Returning a uuid keeps the interface stable for downstream consumers.
+    return uuid.uuid4().hex
