@@ -1,25 +1,31 @@
-import os
-import sys
 import pathlib
+import sys
 
 # Ensure project root is on the import path
 sys.path.append(str(pathlib.Path(__file__).resolve().parent.parent))
 
 from parameter_selection import select_parameters
-from video_generation import generate_video
-from database import Database
+from video_generation import PipelineMode, ValidationStatus, generate_video
+from youtube_upload import UploadStatus, upload_video
 
 
-def test_full_pipeline(tmp_path):
+def test_full_stub_pipeline(tmp_path):
     avatar, motion, music, background = select_parameters()
-    video_path = generate_video(avatar, motion, music, background, tmp_path)
-    assert os.path.exists(video_path)
+    artifact = generate_video(
+        avatar,
+        motion,
+        music,
+        background,
+        tmp_path,
+        mode=PipelineMode.STUB,
+    )
 
-    db_path = tmp_path / "test.db"
-    db = Database(db_path)
-    db.save_video("vid123", avatar, motion, music, background)
+    path = pathlib.Path(artifact.path)
+    assert path.exists()
+    assert path.suffix == ".json"
+    assert not list(tmp_path.glob("*.mp4"))
+    assert artifact.validation_status is ValidationStatus.NOT_APPLICABLE
 
-    cursor = db.conn.cursor()
-    cursor.execute("SELECT video_id, avatar FROM videos")
-    row = cursor.fetchone()
-    assert row == ("vid123", avatar)
+    upload = upload_video(artifact, PipelineMode.STUB)
+    assert upload.status is UploadStatus.STUBBED
+    assert upload.youtube_video_id is None
