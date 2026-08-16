@@ -5,24 +5,28 @@ import sys
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parent.parent))
 
+from dance_renderer import IMAGE2OUTFIT_COMMIT, SIROINO_PATH
 from video_generation import generate_video
 
 
-def test_real_3d_render_moves_and_is_valid_mp4(tmp_path):
+def test_real_siroino_render_moves_and_is_valid_mp4(tmp_path):
+    assert IMAGE2OUTFIT_COMMIT == "e6c3f707932fe3cdbddf07e77fa26279a0ff0252"
+    assert SIROINO_PATH == "Assets/SiroinoWorks/SiroinoSotai/FBX/SiroinoSotai_PC.fbx"
+
     artifact = generate_video(
         tmp_path,
         duration_seconds=1.0,
-        fps=8,
-        size=160,
+        fps=6,
+        size=128,
     )
 
     assert pathlib.Path(artifact.path).is_file()
     assert artifact.codec == "h264"
-    assert artifact.width == 160
-    assert artifact.height == 160
+    assert artifact.width == 128
+    assert artifact.height == 128
     assert artifact.duration_seconds == 1.0
-    assert artifact.generator == "vtk"
-    assert artifact.generator_version == "9.6.2"
+    assert artifact.generator == "Blender"
+    assert artifact.generator_version == "4.5.12"
 
     frame_md5 = subprocess.run(
         ["ffmpeg", "-v", "error", "-i", artifact.path, "-f", "framemd5", "-"],
@@ -35,7 +39,7 @@ def test_real_3d_render_moves_and_is_valid_mp4(tmp_path):
         for line in frame_md5.splitlines()
         if line and not line.startswith("#")
     ]
-    assert len(hashes) == 8
+    assert len(hashes) == 6
     assert len(set(hashes)) > 1
 
     probe = json.loads(
