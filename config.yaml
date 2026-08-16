@@ -1,4 +1,0 @@
-mode: STUB
-log_file: app.log
-database: videos.db
-output_dir: output
