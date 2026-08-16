@@ -7,15 +7,9 @@ import json
 import os
 import subprocess
 from dataclasses import dataclass
-from enum import Enum
 from typing import Callable
 
 from dance_renderer import render_dance
-
-
-class PipelineMode(str, Enum):
-    LOCAL_RENDER = "LOCAL_RENDER"
-    YOUTUBE_PUBLISH = "YOUTUBE_PUBLISH"
 
 
 @dataclass(frozen=True)
