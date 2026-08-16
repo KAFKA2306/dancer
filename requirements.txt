@@ -1,2 +1,2 @@
-PyYAML>=6.0
+vtk==9.6.2
 pytest>=8.0
