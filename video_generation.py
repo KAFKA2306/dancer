@@ -1,4 +1,4 @@
-"""Generate and validate a real 3D dance video."""
+"""Generate and validate a real Siroino dance video."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ import os
 import subprocess
 from dataclasses import dataclass
 from typing import Callable
+
+import bpy
 
 from dance_renderer import render_dance
 
@@ -68,8 +70,8 @@ def _probe_video(
     return GeneratedArtifact(
         path=path,
         media_type="video/mp4",
-        generator="vtk",
-        generator_version="9.6.2",
+        generator="Blender",
+        generator_version=bpy.app.version_string,
         duration_seconds=duration,
         width=width,
         height=height,
@@ -86,7 +88,7 @@ def generate_video(
     size: int,
     probe_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> GeneratedArtifact:
-    """Render moving 3D geometry and return it only after ffprobe validation."""
+    """Render SiroinoSotai_PC and return it only after ffprobe validation."""
     rendered_path = render_dance(
         output_dir,
         duration_seconds=duration_seconds,
