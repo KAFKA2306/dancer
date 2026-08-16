@@ -1,12 +1,30 @@
-# 3Dダンス動画生成
+# SiroinoSotai_PC ダンス動画生成
 
-このリポジトリは、3D形状で構成した関節キャラクターの姿勢を時間ごとに更新し、実際に動くフレーム列を描画して H.264 MP4 を生成します。
+このリポジトリは `KAFKA2306/image2outfit` の実アバター `SiroinoSotai_PC.fbx` を Blender へ読み込み、実Armatureを時間ごとに変形して H.264 MP4 を生成します。
 
-未実装の動画生成、疑似成功、YouTube公開状態、代替出力は持ちません。レンダリング、FFmpeg変換、ffprobe検証のいずれかが失敗した場合は処理も失敗します。
+procedural character、stub、fallback、疑似成功、代替出力は持ちません。FBX取得、FBX import、必須bone検証、skinned mesh検証、Blender render、FFmpeg変換、ffprobe検証のどれかが失敗した場合は処理も失敗します。
+
+## 正本アバター
+
+入力は moving branch ではなく、次の `image2outfit` commitへ固定しています。
+
+- repository: `KAFKA2306/image2outfit`
+- commit: `e6c3f707932fe3cdbddf07e77fa26279a0ff0252`
+- path: `Assets/SiroinoWorks/SiroinoSotai/FBX/SiroinoSotai_PC.fbx`
+- Git blob SHA: `13cc948a3db323ddce81e2b95e0b9ddc0b9480e2`
+- size: `3,862,972 bytes`
+
+実行時はこのimmutable commitからFBXを取得し、既知のsizeと一致しない入力を拒否します。
+
+必須Armature boneは `image2outfit` に保存されているUnity ModelImporter humanoid mappingと同じです。
+
+`Hips`, `Chest`, `Neck`, `Head`, `UpperArm_L`, `UpperArm_R`, `LowerArm_L`, `LowerArm_R`, `UpperLeg_L`, `UpperLeg_R`, `LowerLeg_L`, `LowerLeg_R`
+
+さらに、これらのboneを持つArmatureへ実際に接続された `ARMATURE` modifier付きmeshが存在しなければrenderしません。
 
 ## 実行
 
-必要な外部コマンドは `ffmpeg` と `ffprobe` です。Python側の3D描画には VTK 9.6.2 を使用します。
+Python 3.11 と `ffmpeg` / `ffprobe` が必要です。Python側は Blender Foundation の `bpy==4.5.12` を使用します。
 
 ```bash
 python -m pip install -r requirements.txt
@@ -19,24 +37,22 @@ python main.py \
 
 成功時は `output/dance.mp4` を生成し、ffprobeで確認したcodec、解像度、duration、SHA-256をJSONで標準出力します。
 
-## 何を検証しているか
+## 検証
 
-CIは短い3Dダンス動画を実際に生成し、次を確認します。
+CI自身が正本FBXを取得して短い動画をrenderし、次を確認します。
 
-- H.264 MP4 が生成される
-- 指定した解像度とdurationをffprobeで取得できる
+- 正本FBXのsizeが一致する
+- 必須Siroino boneをすべて持つArmatureが1つ存在する
+- そのArmatureに接続されたskinned meshが存在する
+- Blender 4.5.12で実frameをrenderできる
+- H.264 MP4をffprobeで読める
 - FFmpeg `framemd5` で複数の異なるframe hashが存在する
 
-最後の条件により、静止画を動画コンテナへ入れただけの出力は合格しません。
+最後の条件により、Siroinoの静止画を動画コンテナへ入れただけでは合格しません。
 
-## 実装
+## 一次資料
 
-- `dance_renderer.py`: VTKで3Dキャラクターを組み立て、関節位置を時間更新してPNG frameを描画する
-- `video_generation.py`: FFmpegで生成したMP4をffprobeで検証し、SHA-256とmedia metadataを返す
-- `main.py`: 明示されたduration、fps、size、output directoryで1本の動画を生成する
-
-## 外部仕様
-
-- VTK: https://vtk.org/
-- VTK 9.6.2: https://vtk.org/download/
+- SiroinoSotai_PC FBX: https://github.com/KAFKA2306/image2outfit/blob/e6c3f707932fe3cdbddf07e77fa26279a0ff0252/Assets/SiroinoWorks/SiroinoSotai/FBX/SiroinoSotai_PC.fbx
+- Blender 4.5 FBX: https://docs.blender.org/manual/en/4.5/files/import_export/fbx.html
+- Blender Python module: https://pypi.org/project/bpy/4.5.12/
 - FFmpeg / ffprobe: https://ffmpeg.org/
