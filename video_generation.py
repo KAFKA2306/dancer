@@ -1,4 +1,4 @@
-"""Video generation and media validation."""
+"""Generate and validate a real 3D dance video."""
 
 from __future__ import annotations
 
@@ -8,8 +8,9 @@ import os
 import subprocess
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 from typing import Callable
+
+from dance_renderer import render_dance
 
 
 class PipelineMode(str, Enum):
@@ -42,11 +43,6 @@ def _probe_video(
     path: str,
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> GeneratedArtifact:
-    """Validate a rendered video with ffprobe.
-
-    Missing ffprobe, rejected media, malformed output, and invalid dimensions or
-    duration are errors. They are not converted into alternate pipeline states.
-    """
     result = runner(
         [
             "ffprobe",
@@ -78,8 +74,8 @@ def _probe_video(
     return GeneratedArtifact(
         path=path,
         media_type="video/mp4",
-        generator="external-renderer",
-        generator_version="unknown",
+        generator="vtk",
+        generator_version="9.6.2",
         duration_seconds=duration,
         width=width,
         height=height,
@@ -89,19 +85,18 @@ def _probe_video(
 
 
 def generate_video(
-    avatar: str,
-    motion: str,
-    music: str,
-    background: str,
     output_dir: str | os.PathLike[str],
-    renderer: Callable[[str, str, str, str, str], str],
+    *,
+    duration_seconds: float,
+    fps: int,
+    size: int,
     probe_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> GeneratedArtifact:
-    """Render a real video and return it only after ffprobe validation."""
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    rendered_path = renderer(avatar, motion, music, background, str(output_path))
-    if not Path(rendered_path).is_file():
-        raise FileNotFoundError(f"renderer did not create a file: {rendered_path}")
+    """Render moving 3D geometry and return it only after ffprobe validation."""
+    rendered_path = render_dance(
+        output_dir,
+        duration_seconds=duration_seconds,
+        fps=fps,
+        size=size,
+    )
     return _probe_video(rendered_path, runner=probe_runner)
