@@ -26,7 +26,7 @@ def test_real_siroino_render_moves_and_is_valid_mp4(tmp_path):
     assert artifact.height == 128
     assert artifact.duration_seconds == 1.0
     assert artifact.generator == "Blender"
-    assert artifact.generator_version == "4.5.12"
+    assert artifact.generator_version == "4.5.12 LTS"
 
     frame_md5 = subprocess.run(
         ["ffmpeg", "-v", "error", "-i", artifact.path, "-f", "framemd5", "-"],
