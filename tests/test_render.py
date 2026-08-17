@@ -9,12 +9,13 @@ from dance_renderer import IMAGE2OUTFIT_COMMIT, SIROINO_PATH
 from video_generation import generate_video
 
 
-def test_real_siroino_render_moves_and_is_valid_mp4(tmp_path):
+def test_real_siroino_render_uses_public_motion_and_is_valid_mp4(tmp_path):
     assert IMAGE2OUTFIT_COMMIT == "e6c3f707932fe3cdbddf07e77fa26279a0ff0252"
     assert SIROINO_PATH == "Assets/SiroinoWorks/SiroinoSotai/FBX/SiroinoSotai_PC.fbx"
 
     artifact = generate_video(
         tmp_path,
+        motion_id="93_03",
         duration_seconds=1.0,
         fps=6,
         size=128,
@@ -27,6 +28,11 @@ def test_real_siroino_render_moves_and_is_valid_mp4(tmp_path):
     assert artifact.duration_seconds == 1.0
     assert artifact.generator == "Blender"
     assert artifact.generator_version == "4.5.12 LTS"
+    assert artifact.motion_id == "93_03"
+    assert (
+        "/09a07f54f3bbb58797325f009282d0b2048a2871/data/093/93_03.bvh"
+        in artifact.motion_source_url
+    )
 
     frame_md5 = subprocess.run(
         ["ffmpeg", "-v", "error", "-i", artifact.path, "-f", "framemd5", "-"],
