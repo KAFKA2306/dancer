@@ -1,1 +1,36 @@
-PLACEHOLDER
+{
+  "source": {
+    "name": "Carnegie Mellon University Motion Capture Database / Bruce Hahne MotionBuilder-friendly BVH conversion",
+    "cmu_terms_url": "https://mocap.cs.cmu.edu/",
+    "conversion_terms_url": "https://sites.google.com/a/cgspeed.com/cgspeed/motion-capture/the-motionbuilder-friendly-bvh-conversion-release-of-cmus-motion-capture-database/readme-file-for-the-bvh-conversion-release",
+    "index_url": "https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/09a07f54f3bbb58797325f009282d0b2048a2871/cmu-mocap-index-text.txt",
+    "mirror_commit": "09a07f54f3bbb58797325f009282d0b2048a2871",
+    "notes": "CMU permits use in research and commercial projects but prohibits reselling the data itself; Bruce Hahne states no additional restrictions on this BVH conversion."
+  },
+  "selection": {
+    "rule": "Include non-static entries whose index description contains dance/dancing, plus sessions whose subject is explicitly a dance session (93 Charleston Dance and 94 indian dance).",
+    "excluded": [
+      "49_15 static dance pose"
+    ]
+  },
+  "groups": [
+    {"subject": 5, "category": "modern dance", "motion_ids": ["05_02", "05_03", "05_04", "05_05", "05_06", "05_07", "05_08", "05_09", "05_10", "05_11", "05_12", "05_13", "05_14", "05_15", "05_16", "05_17", "05_18", "05_19", "05_20"]},
+    {"subject": 15, "category": "various everyday behaviors, dance moves", "motion_ids": ["15_04", "15_05", "15_12"]},
+    {"subject": 18, "category": "human interaction and communication (subject A)", "motion_ids": ["18_15"]},
+    {"subject": 19, "category": "human interaction and communication (subject B)", "motion_ids": ["19_15"]},
+    {"subject": 20, "category": "human interaction at play (subject A)", "motion_ids": ["20_01"]},
+    {"subject": 21, "category": "human interaction at play (subject B)", "motion_ids": ["21_01"]},
+    {"subject": 49, "category": "modern dance, gymnastics", "motion_ids": ["49_09", "49_10", "49_11", "49_12", "49_13", "49_14", "49_16", "49_17", "49_22"]},
+    {"subject": 55, "category": "animal behaviors (pantomime)", "motion_ids": ["55_01", "55_02", "55_12", "55_25", "55_27"]},
+    {"subject": 60, "category": "salsa", "motion_ids": ["60_01", "60_02", "60_03", "60_04", "60_05", "60_06", "60_07", "60_08", "60_09", "60_10", "60_11", "60_12", "60_13", "60_14", "60_15"]},
+    {"subject": 61, "category": "salsa", "motion_ids": ["61_01", "61_02", "61_03", "61_04", "61_05", "61_06", "61_07", "61_08", "61_09", "61_10", "61_11", "61_12", "61_13", "61_14", "61_15"]},
+    {"subject": 85, "category": "jumps, flips, breakdance", "motion_ids": ["85_10"]},
+    {"subject": 90, "category": "cartwheels, acrobatics, dances", "motion_ids": ["90_28", "90_30", "90_31"]},
+    {"subject": 93, "category": "Charleston Dance", "motion_ids": ["93_03", "93_04", "93_05", "93_06", "93_07", "93_08"]},
+    {"subject": 94, "category": "indian dance", "motion_ids": ["94_01", "94_02", "94_03", "94_04", "94_05", "94_06", "94_07", "94_08", "94_09", "94_10", "94_11", "94_12", "94_13", "94_14", "94_15", "94_16"]},
+    {"subject": 111, "category": "Pregnant Woman", "motion_ids": ["111_05"]},
+    {"subject": 113, "category": "Post pregnant woman", "motion_ids": ["113_04"]},
+    {"subject": 120, "category": "Various Style Walks", "motion_ids": ["120_05", "120_06", "120_07"]},
+    {"subject": 141, "category": "General Subject Capture", "motion_ids": ["141_12"]}
+  ]
+}
