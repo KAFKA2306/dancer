@@ -1,69 +1,41 @@
-# SiroinoSotai_PC ダンス動画生成
+# dancer
 
 [![Test real Siroino dance](https://github.com/KAFKA2306/dancer/actions/workflows/test.yml/badge.svg)](https://github.com/KAFKA2306/dancer/actions/workflows/test.yml)
 [![Render catalog motion](https://github.com/KAFKA2306/dancer/actions/workflows/render-catalog-motion.yml/badge.svg)](https://github.com/KAFKA2306/dancer/actions/workflows/render-catalog-motion.yml)
 
-このリポジトリは `KAFKA2306/image2outfit` の実アバター `SiroinoSotai_PC.fbx` に、公開済みの BVH モーションを適用し、Blender で H.264 MP4 を生成します。
+公開済みの実ダンスモーションを [`SiroinoSotai_PC`](https://github.com/KAFKA2306/image2outfit/blob/e6c3f707932fe3cdbddf07e77fa26279a0ff0252/Assets/SiroinoWorks/SiroinoSotai/FBX/SiroinoSotai_PC.fbx) へ retarget し、Blender で H.264 MP4 を生成します。
 
-procedural dance、stub、fallback、疑似成功、代替出力は持ちません。FBX取得、BVH取得、import、bone mapping、skinned mesh検証、Blender render、FFmpeg変換、ffprobe検証のどれかが失敗した場合は処理も失敗します。
+**手書きダンス、procedural pose、疑似モーション、fallback は使いません。** 動作源は [`src/dancer/motions.json`](https://github.com/KAFKA2306/dancer/blob/main/src/dancer/motions.json) が指す公開 BVH だけです。
 
-## ダンスモーション
+## 構成
 
-`motions.json` が利用可能なモーションの正本です。現在は **102件**の BVH を保持しています。
-
-選定条件は次の通りです。
-
-- CMU index の説明に `dance` / `dancing` を含む動作。ただし静止ポーズ `49_15` は除外
-- Subject #93 `Charleston Dance` の実ダンス区間 `93_03`〜`93_08`
-- Subject #94 `indian dance` の `94_01`〜`94_16`
-
-モーション本体をこのリポジトリへ複製せず、`una-dinosauria/cmu-mocap` の commit `09a07f54f3bbb58797325f009282d0b2048a2871` に固定した raw URL から取得します。moving branch は使いません。
-
-利用条件の正本は CMU と BVH 変換者の公開文書です。CMU は研究利用と商用製品への組込みを認めていますが、データ自体を変換後も含めて直接再販売することは禁止しています。Bruce Hahne の BVH 変換は追加制限を課していません。
-
-BVH 変換版は各ファイルの第1 frame に T-pose を追加し、MotionBuilder 向けの joint 名へ変換し、frame time を 120 fps 相当に修正しています。`dancer` はこの第1 frame を基準姿勢として、source/target bone の局所 rest axis 差を補正して相対回転を `SiroinoSotai_PC` へ適用します。
-
-一覧確認:
-
-```bash
-python main.py --list-motions
+```text
+.
+├── pyproject.toml
+├── uv.lock
+├── src/
+│   └── dancer/
+│       ├── cli.py
+│       ├── dance_renderer.py
+│       ├── motion_catalog.py
+│       ├── motions.json
+│       └── video_generation.py
+└── tests/
 ```
 
-## 自動選択
-
-`--motion-id` の既定値は `auto` です。UTCの日付と固定開始日 `2026-08-17` から1件を決定的に選び、102日で全カタログを一巡します。同じUTC日付の再実行では同じ motion を選びます。
-
-失敗した motion を別 motion へ切り替える処理はありません。選択された BVH の取得、bone mapping、render、media検証のいずれかが失敗すれば、その実行は失敗します。
-
-GitHub Actions の `Render catalog motion` workflow は毎日 07:17 `Asia/Tokyo` に `--motion-id auto` で1秒の短い実レンダーを行います。成功時は `dance.mp4` と、実際に選ばれた `motion_id`・固定 source URL を含む `metadata.json` を Actions artifact として30日保持します。
-
-## 正本アバター
-
-入力は moving branch ではなく、次の `image2outfit` commitへ固定しています。
-
-- repository: `KAFKA2306/image2outfit`
-- commit: `e6c3f707932fe3cdbddf07e77fa26279a0ff0252`
-- path: `Assets/SiroinoWorks/SiroinoSotai/FBX/SiroinoSotai_PC.fbx`
-- Git blob SHA: `13cc948a3db323ddce81e2b95e0b9ddc0b9480e2`
-- size: `3,862,972 bytes`
-
-実行時はこの immutable commit から FBX を取得し、既知の size と一致しない入力を拒否します。
-
-必須 Armature bone は次の12本です。
-
-`Hips`, `Chest`, `Neck`, `Head`, `UpperArm_L`, `UpperArm_R`, `LowerArm_L`, `LowerArm_R`, `UpperLeg_L`, `UpperLeg_R`, `LowerLeg_L`, `LowerLeg_R`
-
-さらに、これらの bone を持つ Armature へ実際に接続された `ARMATURE` modifier 付き mesh が存在しなければ render しません。
+依存管理と実行には [uv](https://docs.astral.sh/uv/) を使います。`bpy==4.5.12` は [PyPI の配布物](https://pypi.org/project/bpy/4.5.12/)が CPython 3.11 向けなので、このプロジェクトも Python 3.11 に固定しています。
 
 ## 実行
 
-Python 3.11 と `ffmpeg` / `ffprobe` が必要です。Python 側は Blender Foundation の `bpy==4.5.12` を使用します。
+```bash
+uv sync --locked
+uv run --frozen dancer --list-motions
+```
 
-自動選択:
+日付から自動選択して render:
 
 ```bash
-python -m pip install -r requirements.txt
-python main.py \
+uv run --frozen dancer \
   --output-dir output \
   --duration-seconds 2 \
   --fps 24 \
@@ -73,7 +45,7 @@ python main.py \
 特定 motion を指定:
 
 ```bash
-python main.py \
+uv run --frozen dancer \
   --motion-id 93_03 \
   --output-dir output \
   --duration-seconds 2 \
@@ -81,52 +53,33 @@ python main.py \
   --size 512
 ```
 
-指定された id が `motions.json` に存在しなければ失敗します。
+`--motion-id auto` は UTC 日付から1件を決定的に選び、102日で全カタログを一巡します。失敗した motion を別 motion に置き換えません。
 
-成功時は `output/dance.mp4` を生成し、ffprobe で確認した codec、解像度、duration、SHA-256 に加えて、実際に使った `motion_id` と固定 source URL を JSON で標準出力します。
+## モーション
 
-## 自動対応する範囲
+現在のカタログは **102件**です。元データと利用条件は以下を正本にしています。
 
-`motions.json` の BVH はすべて同じ adapter を通ります。motion ごとの専用コードは追加しません。
+- [CMU Graphics Lab Motion Capture Database](https://mocap.cs.cmu.edu/)
+- [Bruce Hahne の MotionBuilder-friendly BVH conversion README](https://sites.google.com/a/cgspeed.com/cgspeed/motion-capture/the-motionbuilder-friendly-bvh-conversion-release-of-cmus-motion-capture-database/readme-file-for-the-bvh-conversion-release)
+- [固定 BVH mirror commit `09a07f54...`](https://github.com/una-dinosauria/cmu-mocap/tree/09a07f54f3bbb58797325f009282d0b2048a2871)
+- [固定 motion index](https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/09a07f54f3bbb58797325f009282d0b2048a2871/cmu-mocap-index-text.txt)
 
-1. catalog から motion id を解決
-2. commit 固定 URL から BVH を取得
-3. `HIERARCHY` header と timing metadata を検証
-4. Blender へ BVH Armature を import
-5. CMU MotionBuilder joint 名を Siroino bone へ対応付け
-6. source/target の局所 rest axis 差を補正
-7. BVH の相対回転を Siroino Armature へ適用
-8. 実 frame を render
-9. H.264 へ変換し ffprobe と frame hash で検証
+CMU は研究利用と商用製品への組込みを認めていますが、データ自体の直接再販売は変換後を含めて禁止しています。BVH 変換者は追加制限を課していません。利用前に上記一次資料を確認してください。
 
-未対応形式を別形式として成功扱いする fallback はありません。
+## 自動検証
 
-## 検証
+[Test real Siroino dance](https://github.com/KAFKA2306/dancer/actions/workflows/test.yml) は実 Siroino FBX と公開 BVH を取得し、Blender render、H.264、ffprobe、複数 frame hash を検証します。
 
-CI 自身が正本 FBX と公開 BVH `93_03` を取得して短い動画を render し、次を確認します。
+[Render catalog motion](https://github.com/KAFKA2306/dancer/actions/workflows/render-catalog-motion.yml) は毎日 07:17 `Asia/Tokyo` に1件を render し、MP4 と metadata を Actions artifact として30日保持します。
 
-- catalog が102件で重複せず、全 URL が固定 commit を参照する
-- 日次選択が決定的で102日で一巡する
-- 正本 FBX の size が一致する
-- 必須 Siroino bone をすべて持つ Armature が1つ存在する
-- その Armature に接続された skinned mesh が存在する
-- BVH に必要な source bone が存在する
-- Blender 4.5.12 で実 frame を render できる
-- H.264 MP4 を ffprobe で読める
-- FFmpeg `framemd5` で複数の異なる frame hash が存在する
-- 出力 metadata に実際の `motion_id` と固定 source URL が残る
+GitHub Actions の uv セットアップは [Astral 公式ガイド](https://docs.astral.sh/uv/guides/integration/github/) と [`astral-sh/setup-uv`](https://github.com/astral-sh/setup-uv) に従い、`uv sync --locked` / `uv run --frozen` を使います。
 
-最後の条件群により、Siroino の静止画を動画コンテナへ入れただけ、または出典不明の motion を使っただけでは合格しません。
+## 関連リンク
 
-## 一次資料
-
-- CMU Graphics Lab Motion Capture Database: https://mocap.cs.cmu.edu/
-- Bruce Hahne BVH conversion README / usage rights: https://sites.google.com/a/cgspeed.com/cgspeed/motion-capture/the-motionbuilder-friendly-bvh-conversion-release-of-cmus-motion-capture-database/readme-file-for-the-bvh-conversion-release
-- 固定 BVH mirror commit: https://github.com/una-dinosauria/cmu-mocap/tree/09a07f54f3bbb58797325f009282d0b2048a2871
-- 固定 motion index: https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/09a07f54f3bbb58797325f009282d0b2048a2871/cmu-mocap-index-text.txt
-- GitHub Actions schedule: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onschedule
-- actions/upload-artifact: https://github.com/actions/upload-artifact
-- Blender 4.5 Import/Export add-ons: https://docs.blender.org/manual/en/4.5/addons/import_export/index.html
-- SiroinoSotai_PC FBX: https://github.com/KAFKA2306/image2outfit/blob/e6c3f707932fe3cdbddf07e77fa26279a0ff0252/Assets/SiroinoWorks/SiroinoSotai/FBX/SiroinoSotai_PC.fbx
-- Blender Python module: https://pypi.org/project/bpy/4.5.12/
-- FFmpeg / ffprobe: https://ffmpeg.org/
+- [Repository](https://github.com/KAFKA2306/dancer)
+- [Issues](https://github.com/KAFKA2306/dancer/issues)
+- [Issue #15: uv と src layout へ移行する](https://github.com/KAFKA2306/dancer/issues/15)
+- [SiroinoSotai_PC fixed source](https://github.com/KAFKA2306/image2outfit/blob/e6c3f707932fe3cdbddf07e77fa26279a0ff0252/Assets/SiroinoWorks/SiroinoSotai/FBX/SiroinoSotai_PC.fbx)
+- [uv packaged application / src layout](https://docs.astral.sh/uv/concepts/projects/init/#packaged-applications)
+- [uv build backend](https://docs.astral.sh/uv/configuration/build-backend/)
+- [FFmpeg](https://ffmpeg.org/)

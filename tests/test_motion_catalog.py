@@ -2,7 +2,7 @@ import json
 from datetime import timedelta
 from pathlib import Path
 
-from motion_catalog import (
+from dancer.motion_catalog import (
     CATALOG_PATH,
     ROTATION_START_DATE,
     get_motion,

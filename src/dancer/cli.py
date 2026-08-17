@@ -6,8 +6,8 @@ import argparse
 import json
 from dataclasses import asdict
 
-from motion_catalog import load_catalog
-from video_generation import generate_video
+from .motion_catalog import load_catalog
+from .video_generation import generate_video
 
 
 def main() -> None:
@@ -42,7 +42,3 @@ def main() -> None:
         size=args.size,
     )
     print(json.dumps(asdict(artifact), sort_keys=True))
-
-
-if __name__ == "__main__":
-    main()

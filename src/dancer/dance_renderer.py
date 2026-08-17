@@ -11,7 +11,7 @@ from pathlib import Path
 import bpy
 from mathutils import Matrix, Vector
 
-from motion_catalog import DanceMotion, download_motion
+from .motion_catalog import DanceMotion, download_motion
 
 IMAGE2OUTFIT_COMMIT = "e6c3f707932fe3cdbddf07e77fa26279a0ff0252"
 SIROINO_PATH = "Assets/SiroinoWorks/SiroinoSotai/FBX/SiroinoSotai_PC.fbx"
@@ -245,7 +245,6 @@ def _apply_motion_frame(
         target_delta = basis @ delta.to_matrix() @ basis.inverted()
         target.pose.bones[target_name].rotation_quaternion = target_delta.to_quaternion()
 
-    target.pose.bones["Hips"].location = (0.0, 0.0, 0.0)
     bpy.context.view_layer.update()
 
 

@@ -1,0 +1,21 @@
+[project]
+name = "dancer"
+version = "0.1.0"
+description = "Render SiroinoSotai_PC with cataloged public BVH dance motions."
+readme = "README.md"
+requires-python = "==3.11.*"
+dependencies = [
+  "bpy==4.5.12",
+]
+
+[project.scripts]
+dancer = "dancer.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.32,<0.13"]
+build-backend = "uv_build"

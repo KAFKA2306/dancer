@@ -11,7 +11,7 @@ from typing import Callable
 
 import bpy
 
-from dance_renderer import render_dance
+from .dance_renderer import render_dance
 
 
 @dataclass(frozen=True)
