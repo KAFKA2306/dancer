@@ -11,7 +11,7 @@ from pathlib import Path
 import bpy
 from mathutils import Matrix, Vector
 
-from motion_catalog import download_motion
+from motion_catalog import DanceMotion, download_motion
 
 IMAGE2OUTFIT_COMMIT = "e6c3f707932fe3cdbddf07e77fa26279a0ff0252"
 SIROINO_PATH = "Assets/SiroinoWorks/SiroinoSotai/FBX/SiroinoSotai_PC.fbx"
@@ -256,7 +256,7 @@ def render_dance(
     duration_seconds: float,
     fps: int,
     size: int,
-) -> tuple[str, str]:
+) -> tuple[str, DanceMotion]:
     """Retarget one cataloged BVH motion to SiroinoSotai_PC and render H.264."""
     if duration_seconds <= 0:
         raise ValueError("duration_seconds must be positive")
@@ -273,7 +273,7 @@ def render_dance(
     frame_dir = work / "frames"
     frame_dir.mkdir(parents=True)
     fbx_path = work / "SiroinoSotai_PC.fbx"
-    bvh_path = work / f"{motion_id}.bvh"
+    bvh_path = work / "motion.bvh"
 
     _download_siroino(fbx_path)
     motion = download_motion(motion_id, bvh_path)
@@ -328,4 +328,4 @@ def render_dance(
         check=True,
     )
     shutil.rmtree(work)
-    return str(output_path), motion.url
+    return str(output_path), motion
