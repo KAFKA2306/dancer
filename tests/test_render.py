@@ -1,12 +1,9 @@
 import json
 import pathlib
 import subprocess
-import sys
 
-sys.path.append(str(pathlib.Path(__file__).resolve().parent.parent))
-
-from dance_renderer import IMAGE2OUTFIT_COMMIT, SIROINO_PATH
-from video_generation import generate_video
+from dancer.dance_renderer import IMAGE2OUTFIT_COMMIT, SIROINO_PATH
+from dancer.video_generation import generate_video
 
 
 def test_real_siroino_render_uses_public_motion_and_is_valid_mp4(tmp_path):
