@@ -97,7 +97,7 @@ def generate_video(
     probe_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> GeneratedArtifact:
     """Render SiroinoSotai_PC with a cataloged motion and validate the MP4."""
-    rendered_path, motion_source_url = render_dance(
+    rendered_path, motion = render_dance(
         output_dir,
         motion_id=motion_id,
         duration_seconds=duration_seconds,
@@ -106,7 +106,7 @@ def generate_video(
     )
     return _probe_video(
         rendered_path,
-        motion_id=motion_id,
-        motion_source_url=motion_source_url,
+        motion_id=motion.id,
+        motion_source_url=motion.url,
         runner=probe_runner,
     )
