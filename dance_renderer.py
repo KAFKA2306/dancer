@@ -1,15 +1,17 @@
-"""Render the real SiroinoSotai_PC armature dancing with Blender."""
+"""Render the real SiroinoSotai_PC armature with a cataloged BVH dance."""
 
 from __future__ import annotations
 
-import math
+import re
 import shutil
 import subprocess
 import urllib.request
 from pathlib import Path
 
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
+
+from motion_catalog import download_motion
 
 IMAGE2OUTFIT_COMMIT = "e6c3f707932fe3cdbddf07e77fa26279a0ff0252"
 SIROINO_PATH = "Assets/SiroinoWorks/SiroinoSotai/FBX/SiroinoSotai_PC.fbx"
@@ -32,6 +34,20 @@ REQUIRED_BONES = (
     "LowerLeg_L",
     "LowerLeg_R",
 )
+SOURCE_TO_TARGET_BONES = {
+    "Hips": "Hips",
+    "Spine1": "Chest",
+    "Neck1": "Neck",
+    "Head": "Head",
+    "LeftArm": "UpperArm_L",
+    "RightArm": "UpperArm_R",
+    "LeftForeArm": "LowerArm_L",
+    "RightForeArm": "LowerArm_R",
+    "LeftUpLeg": "UpperLeg_L",
+    "RightUpLeg": "UpperLeg_R",
+    "LeftLeg": "LowerLeg_L",
+    "RightLeg": "LowerLeg_R",
+}
 
 
 def _download_siroino(path: Path) -> None:
@@ -77,6 +93,42 @@ def _import_siroino(path: Path) -> tuple[bpy.types.Object, list[bpy.types.Object
     return armature, skinned
 
 
+def _import_bvh(path: Path, target_armature: bpy.types.Object) -> bpy.types.Object:
+    bpy.ops.preferences.addon_enable(module="io_anim_bvh")
+    bpy.ops.import_anim.bvh(filepath=str(path), frame_start=1)
+    source_bones = tuple(SOURCE_TO_TARGET_BONES)
+    candidates = [
+        obj
+        for obj in bpy.context.scene.objects
+        if obj.type == "ARMATURE"
+        and obj != target_armature
+        and all(name in obj.data.bones for name in source_bones)
+    ]
+    if len(candidates) != 1:
+        raise RuntimeError(
+            f"expected one BVH armature with mapped bones, found {len(candidates)}"
+        )
+    return candidates[0]
+
+
+def _parse_bvh_timing(path: Path) -> tuple[int, float]:
+    text = path.read_text(encoding="ascii", errors="strict")
+    motion = text.split("MOTION", maxsplit=1)
+    if len(motion) != 2:
+        raise ValueError("BVH has no MOTION section")
+    frames_match = re.search(r"^Frames:\s*(\d+)\s*$", motion[1], re.MULTILINE)
+    time_match = re.search(
+        r"^Frame Time:\s*([0-9.eE+-]+)\s*$", motion[1], re.MULTILINE
+    )
+    if not frames_match or not time_match:
+        raise ValueError("BVH timing metadata is missing")
+    frame_count = int(frames_match.group(1))
+    frame_time = float(time_match.group(1))
+    if frame_count < 3 or frame_time <= 0:
+        raise ValueError("BVH must contain a T-pose and at least two motion frames")
+    return frame_count, frame_time
+
+
 def _scene_bounds(objects: list[bpy.types.Object]) -> tuple[Vector, Vector]:
     corners = [
         obj.matrix_world @ Vector(corner)
@@ -84,10 +136,18 @@ def _scene_bounds(objects: list[bpy.types.Object]) -> tuple[Vector, Vector]:
         for corner in obj.bound_box
     ]
     minimum = Vector(
-        (min(point.x for point in corners), min(point.y for point in corners), min(point.z for point in corners))
+        (
+            min(point.x for point in corners),
+            min(point.y for point in corners),
+            min(point.z for point in corners),
+        )
     )
     maximum = Vector(
-        (max(point.x for point in corners), max(point.y for point in corners), max(point.z for point in corners))
+        (
+            max(point.x for point in corners),
+            max(point.y for point in corners),
+            max(point.z for point in corners),
+        )
     )
     return minimum, maximum
 
@@ -134,45 +194,70 @@ def _configure_scene(meshes: list[bpy.types.Object], size: int) -> None:
         scene.collection.objects.link(light)
 
 
-def _animate_pose(armature: bpy.types.Object, time_seconds: float) -> None:
-    pose = armature.pose.bones
-    phase = 2.0 * math.pi * time_seconds
+def _bone_local_rest_rotation(bone: bpy.types.Bone) -> Matrix:
+    rotation = bone.matrix_local.to_3x3()
+    if bone.parent is None:
+        return rotation
+    return bone.parent.matrix_local.to_3x3().inverted() @ rotation
 
-    for name in REQUIRED_BONES:
-        pose[name].rotation_mode = "XYZ"
-        pose[name].rotation_euler = (0.0, 0.0, 0.0)
-    pose["Hips"].location = (0.0, 0.0, 0.0)
 
-    pose["Hips"].location.x = 0.035 * math.sin(phase)
-    pose["Hips"].location.z = 0.025 * math.sin(2.0 * phase)
-    pose["Hips"].rotation_euler.z = 0.12 * math.sin(phase)
-    pose["Chest"].rotation_euler.y = -0.10 * math.sin(phase)
-    pose["Chest"].rotation_euler.z = -0.16 * math.sin(phase)
-    pose["Neck"].rotation_euler.z = 0.08 * math.sin(phase)
-    pose["Head"].rotation_euler.z = 0.10 * math.sin(phase)
+def _retarget_setup(
+    source: bpy.types.Object,
+    target: bpy.types.Object,
+) -> tuple[dict[str, object], dict[str, Matrix]]:
+    scene = bpy.context.scene
+    scene.frame_set(1)
+    bpy.context.view_layer.update()
 
-    arm_swing = 0.65 * math.sin(phase)
-    pose["UpperArm_L"].rotation_euler.z = 0.45 + arm_swing
-    pose["UpperArm_R"].rotation_euler.z = -0.45 - arm_swing
-    pose["LowerArm_L"].rotation_euler.x = -0.35 - 0.25 * math.cos(phase)
-    pose["LowerArm_R"].rotation_euler.x = -0.35 + 0.25 * math.cos(phase)
+    source_baseline: dict[str, object] = {}
+    basis_alignment: dict[str, Matrix] = {}
+    for source_name, target_name in SOURCE_TO_TARGET_BONES.items():
+        source_pose = source.pose.bones[source_name]
+        target_pose = target.pose.bones[target_name]
+        source_baseline[source_name] = source_pose.matrix_basis.to_quaternion().copy()
 
-    leg_swing = 0.32 * math.sin(phase)
-    pose["UpperLeg_L"].rotation_euler.x = leg_swing
-    pose["UpperLeg_R"].rotation_euler.x = -leg_swing
-    pose["LowerLeg_L"].rotation_euler.x = -0.18 - 0.15 * max(0.0, math.sin(phase))
-    pose["LowerLeg_R"].rotation_euler.x = -0.18 - 0.15 * max(0.0, -math.sin(phase))
+        source_rest = _bone_local_rest_rotation(source.data.bones[source_name])
+        target_rest = _bone_local_rest_rotation(target.data.bones[target_name])
+        basis_alignment[source_name] = target_rest.inverted() @ source_rest
+
+        target_pose.rotation_mode = "QUATERNION"
+        target_pose.rotation_quaternion = (1.0, 0.0, 0.0, 0.0)
+        target_pose.location = (0.0, 0.0, 0.0)
+    bpy.context.view_layer.update()
+    return source_baseline, basis_alignment
+
+
+def _apply_motion_frame(
+    source: bpy.types.Object,
+    target: bpy.types.Object,
+    source_frame: float,
+    source_baseline: dict[str, object],
+    basis_alignment: dict[str, Matrix],
+) -> None:
+    whole = int(source_frame)
+    bpy.context.scene.frame_set(whole, subframe=source_frame - whole)
+    bpy.context.view_layer.update()
+
+    for source_name, target_name in SOURCE_TO_TARGET_BONES.items():
+        current = source.pose.bones[source_name].matrix_basis.to_quaternion()
+        delta = source_baseline[source_name].inverted() @ current
+        basis = basis_alignment[source_name]
+        target_delta = basis @ delta.to_matrix() @ basis.inverted()
+        target.pose.bones[target_name].rotation_quaternion = target_delta.to_quaternion()
+
+    target.pose.bones["Hips"].location = (0.0, 0.0, 0.0)
     bpy.context.view_layer.update()
 
 
 def render_dance(
     output_dir: str | Path,
     *,
+    motion_id: str,
     duration_seconds: float,
     fps: int,
     size: int,
-) -> str:
-    """Render SiroinoSotai_PC moving under its real armature to H.264 MP4."""
+) -> tuple[str, str]:
+    """Retarget one cataloged BVH motion to SiroinoSotai_PC and render H.264."""
     if duration_seconds <= 0:
         raise ValueError("duration_seconds must be positive")
     if fps <= 0:
@@ -188,17 +273,36 @@ def render_dance(
     frame_dir = work / "frames"
     frame_dir.mkdir(parents=True)
     fbx_path = work / "SiroinoSotai_PC.fbx"
+    bvh_path = work / f"{motion_id}.bvh"
 
     _download_siroino(fbx_path)
+    motion = download_motion(motion_id, bvh_path)
+    source_frame_count, source_frame_time = _parse_bvh_timing(bvh_path)
+
     _clear_scene()
-    armature, meshes = _import_siroino(fbx_path)
-    armature.animation_data_clear()
+    target_armature, meshes = _import_siroino(fbx_path)
+    target_armature.animation_data_clear()
+    source_armature = _import_bvh(bvh_path, target_armature)
+    source_baseline, basis_alignment = _retarget_setup(source_armature, target_armature)
     _configure_scene(meshes, size)
 
     frame_count = max(2, round(duration_seconds * fps))
+    available_motion_seconds = (source_frame_count - 2) * source_frame_time
+    if available_motion_seconds <= 0:
+        raise ValueError("BVH contains no usable motion after its T-pose")
+
     scene = bpy.context.scene
     for frame_index in range(frame_count):
-        _animate_pose(armature, frame_index / fps)
+        time_seconds = frame_index / fps
+        source_frame = 2.0 + (time_seconds % available_motion_seconds) / source_frame_time
+        source_frame = min(source_frame, float(source_frame_count))
+        _apply_motion_frame(
+            source_armature,
+            target_armature,
+            source_frame,
+            source_baseline,
+            basis_alignment,
+        )
         scene.render.filepath = str(frame_dir / f"{frame_index:04d}.png")
         bpy.ops.render.render(write_still=True)
 
@@ -224,4 +328,4 @@ def render_dance(
         check=True,
     )
     shutil.rmtree(work)
-    return str(output_path)
+    return str(output_path), motion.url
