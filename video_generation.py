@@ -25,6 +25,8 @@ class GeneratedArtifact:
     height: int
     codec: str
     sha256: str
+    motion_id: str
+    motion_source_url: str
 
 
 def _sha256(path: str | os.PathLike[str]) -> str:
@@ -37,6 +39,9 @@ def _sha256(path: str | os.PathLike[str]) -> str:
 
 def _probe_video(
     path: str,
+    *,
+    motion_id: str,
+    motion_source_url: str,
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> GeneratedArtifact:
     result = runner(
@@ -77,22 +82,31 @@ def _probe_video(
         height=height,
         codec=codec,
         sha256=_sha256(path),
+        motion_id=motion_id,
+        motion_source_url=motion_source_url,
     )
 
 
 def generate_video(
     output_dir: str | os.PathLike[str],
     *,
+    motion_id: str,
     duration_seconds: float,
     fps: int,
     size: int,
     probe_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> GeneratedArtifact:
-    """Render SiroinoSotai_PC and return it only after ffprobe validation."""
-    rendered_path = render_dance(
+    """Render SiroinoSotai_PC with a cataloged motion and validate the MP4."""
+    rendered_path, motion_source_url = render_dance(
         output_dir,
+        motion_id=motion_id,
         duration_seconds=duration_seconds,
         fps=fps,
         size=size,
     )
-    return _probe_video(rendered_path, runner=probe_runner)
+    return _probe_video(
+        rendered_path,
+        motion_id=motion_id,
+        motion_source_url=motion_source_url,
+        runner=probe_runner,
+    )
