@@ -1,6 +1,7 @@
 # SiroinoSotai_PC ダンス動画生成
 
 [![Test real Siroino dance](https://github.com/KAFKA2306/dancer/actions/workflows/test.yml/badge.svg)](https://github.com/KAFKA2306/dancer/actions/workflows/test.yml)
+[![Render catalog motion](https://github.com/KAFKA2306/dancer/actions/workflows/render-catalog-motion.yml/badge.svg)](https://github.com/KAFKA2306/dancer/actions/workflows/render-catalog-motion.yml)
 
 このリポジトリは `KAFKA2306/image2outfit` の実アバター `SiroinoSotai_PC.fbx` に、公開済みの BVH モーションを適用し、Blender で H.264 MP4 を生成します。
 
@@ -28,6 +29,14 @@ BVH 変換版は各ファイルの第1 frame に T-pose を追加し、MotionBui
 python main.py --list-motions
 ```
 
+## 自動選択
+
+`--motion-id` の既定値は `auto` です。UTCの日付と固定開始日 `2026-08-17` から1件を決定的に選び、102日で全カタログを一巡します。同じUTC日付の再実行では同じ motion を選びます。
+
+失敗した motion を別 motion へ切り替える処理はありません。選択された BVH の取得、bone mapping、render、media検証のいずれかが失敗すれば、その実行は失敗します。
+
+GitHub Actions の `Render catalog motion` workflow は毎日 07:17 `Asia/Tokyo` に `--motion-id auto` で1秒の短い実レンダーを行います。成功時は `dance.mp4` と、実際に選ばれた `motion_id`・固定 source URL を含む `metadata.json` を Actions artifact として30日保持します。
+
 ## 正本アバター
 
 入力は moving branch ではなく、次の `image2outfit` commitへ固定しています。
@@ -50,8 +59,20 @@ python main.py --list-motions
 
 Python 3.11 と `ffmpeg` / `ffprobe` が必要です。Python 側は Blender Foundation の `bpy==4.5.12` を使用します。
 
+自動選択:
+
 ```bash
 python -m pip install -r requirements.txt
+python main.py \
+  --output-dir output \
+  --duration-seconds 2 \
+  --fps 24 \
+  --size 512
+```
+
+特定 motion を指定:
+
+```bash
 python main.py \
   --motion-id 93_03 \
   --output-dir output \
@@ -60,7 +81,7 @@ python main.py \
   --size 512
 ```
 
-`--motion-id` を省略した場合は `93_03` を使います。指定された id が `motions.json` に存在しなければ失敗します。
+指定された id が `motions.json` に存在しなければ失敗します。
 
 成功時は `output/dance.mp4` を生成し、ffprobe で確認した codec、解像度、duration、SHA-256 に加えて、実際に使った `motion_id` と固定 source URL を JSON で標準出力します。
 
@@ -85,6 +106,7 @@ python main.py \
 CI 自身が正本 FBX と公開 BVH `93_03` を取得して短い動画を render し、次を確認します。
 
 - catalog が102件で重複せず、全 URL が固定 commit を参照する
+- 日次選択が決定的で102日で一巡する
 - 正本 FBX の size が一致する
 - 必須 Siroino bone をすべて持つ Armature が1つ存在する
 - その Armature に接続された skinned mesh が存在する
@@ -92,7 +114,7 @@ CI 自身が正本 FBX と公開 BVH `93_03` を取得して短い動画を rend
 - Blender 4.5.12 で実 frame を render できる
 - H.264 MP4 を ffprobe で読める
 - FFmpeg `framemd5` で複数の異なる frame hash が存在する
-- 出力 metadata に `motion_id` と固定 source URL が残る
+- 出力 metadata に実際の `motion_id` と固定 source URL が残る
 
 最後の条件群により、Siroino の静止画を動画コンテナへ入れただけ、または出典不明の motion を使っただけでは合格しません。
 
@@ -102,6 +124,8 @@ CI 自身が正本 FBX と公開 BVH `93_03` を取得して短い動画を rend
 - Bruce Hahne BVH conversion README / usage rights: https://sites.google.com/a/cgspeed.com/cgspeed/motion-capture/the-motionbuilder-friendly-bvh-conversion-release-of-cmus-motion-capture-database/readme-file-for-the-bvh-conversion-release
 - 固定 BVH mirror commit: https://github.com/una-dinosauria/cmu-mocap/tree/09a07f54f3bbb58797325f009282d0b2048a2871
 - 固定 motion index: https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/09a07f54f3bbb58797325f009282d0b2048a2871/cmu-mocap-index-text.txt
+- GitHub Actions schedule: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onschedule
+- actions/upload-artifact: https://github.com/actions/upload-artifact
 - Blender 4.5 Import/Export add-ons: https://docs.blender.org/manual/en/4.5/addons/import_export/index.html
 - SiroinoSotai_PC FBX: https://github.com/KAFKA2306/image2outfit/blob/e6c3f707932fe3cdbddf07e77fa26279a0ff0252/Assets/SiroinoWorks/SiroinoSotai/FBX/SiroinoSotai_PC.fbx
 - Blender Python module: https://pypi.org/project/bpy/4.5.12/

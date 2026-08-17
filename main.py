@@ -13,7 +13,7 @@ from video_generation import generate_video
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--list-motions", action="store_true")
-    parser.add_argument("--motion-id", default="93_03")
+    parser.add_argument("--motion-id", default="auto")
     parser.add_argument("--output-dir")
     parser.add_argument("--duration-seconds", type=float)
     parser.add_argument("--fps", type=int)
