@@ -7,22 +7,6 @@
 
 **手書きダンス、procedural pose、疑似モーション、fallback は使いません。** 動作源は [`src/dancer/motions.json`](https://github.com/KAFKA2306/dancer/blob/main/src/dancer/motions.json) が指す公開 BVH だけです。
 
-## 構成
-
-```text
-.
-├── pyproject.toml
-├── uv.lock
-├── src/
-│   └── dancer/
-│       ├── cli.py
-│       ├── dance_renderer.py
-│       ├── motion_catalog.py
-│       ├── motions.json
-│       └── video_generation.py
-└── tests/
-```
-
 依存管理と実行には [uv](https://docs.astral.sh/uv/) を使います。`bpy==4.5.12` は [PyPI の配布物](https://pypi.org/project/bpy/4.5.12/)が CPython 3.11 向けなので、このプロジェクトも Python 3.11 に固定しています。
 
 ## 実行
@@ -71,15 +55,3 @@ CMU は研究利用と商用製品への組込みを認めていますが、デ�
 [Test real Siroino dance](https://github.com/KAFKA2306/dancer/actions/workflows/test.yml) は実 Siroino FBX と公開 BVH を取得し、Blender render、H.264、ffprobe、複数 frame hash を検証します。
 
 [Render catalog motion](https://github.com/KAFKA2306/dancer/actions/workflows/render-catalog-motion.yml) は毎日 07:17 `Asia/Tokyo` に1件を render し、MP4 と metadata を Actions artifact として30日保持します。
-
-GitHub Actions の uv セットアップは [Astral 公式ガイド](https://docs.astral.sh/uv/guides/integration/github/) と [`astral-sh/setup-uv`](https://github.com/astral-sh/setup-uv) に従い、`uv sync --locked` / `uv run --frozen` を使います。
-
-## 関連リンク
-
-- [Repository](https://github.com/KAFKA2306/dancer)
-- [Issues](https://github.com/KAFKA2306/dancer/issues)
-- [Issue #15: uv と src layout へ移行する](https://github.com/KAFKA2306/dancer/issues/15)
-- [SiroinoSotai_PC fixed source](https://github.com/KAFKA2306/image2outfit/blob/e6c3f707932fe3cdbddf07e77fa26279a0ff0252/Assets/SiroinoWorks/SiroinoSotai/FBX/SiroinoSotai_PC.fbx)
-- [uv packaged application / src layout](https://docs.astral.sh/uv/concepts/projects/init/#packaged-applications)
-- [uv build backend](https://docs.astral.sh/uv/configuration/build-backend/)
-- [FFmpeg](https://ffmpeg.org/)
