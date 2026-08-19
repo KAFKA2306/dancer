@@ -3,7 +3,7 @@ name: Render catalog motion
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 7 * * *"
+    - cron: "17 9 * * *"
       timezone: "Asia/Tokyo"
 
 permissions:
