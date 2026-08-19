@@ -54,4 +54,4 @@ CMU は研究利用と商用製品への組込みを認めていますが、デ�
 
 [Test real Siroino dance](https://github.com/KAFKA2306/dancer/actions/workflows/test.yml) は実 Siroino FBX と公開 BVH を取得し、Blender render、H.264、ffprobe、複数 frame hash を検証します。
 
-[Render catalog motion](https://github.com/KAFKA2306/dancer/actions/workflows/render-catalog-motion.yml) は毎日 07:17 `Asia/Tokyo` に1件を render し、MP4 と metadata を Actions artifact として30日保持します。
+[Render catalog motion](https://github.com/KAFKA2306/dancer/actions/workflows/render-catalog-motion.yml) は毎日 09:17 `Asia/Tokyo` に1件を render し、MP4 と metadata を Actions artifact として30日保持します。
