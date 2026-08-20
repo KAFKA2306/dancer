@@ -14,6 +14,7 @@ permissions:
 jobs:
   production:
     runs-on: ubuntu-latest
+    timeout-minutes: 330
     env:
       YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
       YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
@@ -59,16 +60,29 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            duration=2
+            fps=3
+            width=180
+            height=320
+            candidates=2
+          else
+            duration=8
+            fps=24
+            width=1080
+            height=1920
+            candidates=3
+          fi
           args=(
             production
             --output-dir output
             --motion-id auto
             --audio-id auto
-            --duration-seconds 2
-            --fps 6
-            --width 180
-            --height 320
-            --candidates 2
+            --duration-seconds "$duration"
+            --fps "$fps"
+            --width "$width"
+            --height "$height"
+            --candidates "$candidates"
           )
           if [[ "${{ steps.yt3.outputs.enabled }}" == "true" ]]; then
             args+=(
