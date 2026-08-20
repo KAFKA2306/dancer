@@ -55,9 +55,10 @@ jobs:
           echo "root=$RUNNER_TEMP/yt3" >> "$GITHUB_OUTPUT"
           echo "reason=AUTHENTICATED" >> "$GITHUB_OUTPUT"
       - name: Produce, audit, and publish when authenticated
+        id: produce
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           args=(
             production
             --output-dir output
@@ -75,8 +76,16 @@ jobs:
               --publish-profile "$DANCER_YOUTUBE_PROFILE"
             )
           fi
-          xvfb-run -a uv run --frozen --no-dev dancer "${args[@]}" > output-result.json
-      - name: Record publication boundary
+          set +e
+          xvfb-run -a uv run --frozen --no-dev dancer "${args[@]}" > output-result.json 2> production-error.log
+          exit_code=$?
+          set -e
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          if [[ $exit_code -ne 0 ]]; then
+            tail -c 4000 production-error.log >&2 || true
+            exit "$exit_code"
+          fi
+      - name: Record publication and failure boundary
         if: always()
         shell: bash
         run: |
@@ -87,17 +96,57 @@ jobs:
 
           enabled = "${{ steps.yt3.outputs.enabled }}" == "true"
           reason = "${{ steps.yt3.outputs.reason }}" or "UNKNOWN"
+          exit_code_text = "${{ steps.produce.outputs.exit_code }}"
+          exit_code = int(exit_code_text) if exit_code_text.isdigit() else None
           event = os.environ.get("GITHUB_EVENT_NAME", "")
-          if event == "pull_request":
-              status = "EXTERNAL_SIDE_EFFECTS_DISABLED"
-          elif enabled:
-              status = "PUBLICATION_ATTEMPTED"
+
+          manifests = list(Path("output").glob("runs/**/manifest.json")) if Path("output").exists() else []
+          audits = list(Path("output").glob("runs/**/candidates/**/audit.json")) if Path("output").exists() else []
+          result = None
+          if Path("output-result.json").is_file() and Path("output-result.json").stat().st_size:
+              try:
+                  result = json.loads(Path("output-result.json").read_text(encoding="utf-8"))
+              except json.JSONDecodeError:
+                  result = None
+
+          if result and result.get("publish_status") == "published_or_scheduled":
+              last_completed_stage = "YT3_PUBLICATION_VERIFIED"
+          elif manifests:
+              last_completed_stage = "MANIFEST_AND_POLICY_GATE_PASSED"
+          elif audits:
+              last_completed_stage = "CANDIDATE_AUDIT_PARTIAL"
           else:
+              last_completed_stage = "PRODUCTION_NOT_COMPLETED"
+
+          if exit_code not in (None, 0):
+              status = "FAILED"
+              failure_kind = "EXTERNAL_PUBLICATION_FAILURE" if enabled and manifests else "LOCAL_PRODUCTION_FAILURE"
+              failure_reason = f"dancer production exited with code {exit_code}"
+          elif event == "pull_request":
+              status = "EXTERNAL_SIDE_EFFECTS_DISABLED"
+              failure_kind = None
+              failure_reason = None
+          elif not enabled:
               status = "PUBLICATION_BLOCKED"
+              failure_kind = "MISSING_CREDENTIALS"
+              failure_reason = reason
+          elif result and result.get("publish_status") == "published_or_scheduled":
+              status = "PUBLICATION_VERIFIED"
+              failure_kind = None
+              failure_reason = None
+          else:
+              status = "PUBLICATION_NOT_VERIFIED"
+              failure_kind = "EXTERNAL_PUBLICATION_FAILURE"
+              failure_reason = "production completed without a verified YT3 publication status"
+
           payload = {
               "status": status,
               "reason": reason,
               "profile": os.environ.get("DANCER_YOUTUBE_PROFILE"),
+              "last_completed_stage": last_completed_stage,
+              "failure_kind": failure_kind,
+              "failure_reason": failure_reason,
+              "production_exit_code": exit_code,
               "credentials_in_artifact": False,
               "workflow_run_id": os.environ.get("GITHUB_RUN_ID"),
           }
