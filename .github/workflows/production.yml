@@ -103,11 +103,19 @@ jobs:
           manifests = list(Path("output").glob("runs/**/manifest.json")) if Path("output").exists() else []
           audits = list(Path("output").glob("runs/**/candidates/**/audit.json")) if Path("output").exists() else []
           result = None
-          if Path("output-result.json").is_file() and Path("output-result.json").stat().st_size:
-              try:
-                  result = json.loads(Path("output-result.json").read_text(encoding="utf-8"))
-              except json.JSONDecodeError:
-                  result = None
+          result_path = Path("output-result.json")
+          if result_path.is_file() and result_path.stat().st_size:
+              for line in reversed(result_path.read_text(encoding="utf-8").splitlines()):
+                  line = line.strip()
+                  if not line.startswith("{"):
+                      continue
+                  try:
+                      candidate = json.loads(line)
+                  except json.JSONDecodeError:
+                      continue
+                  if isinstance(candidate, dict) and candidate.get("run_id"):
+                      result = candidate
+                      break
 
           if result and result.get("publish_status") == "published_or_scheduled":
               last_completed_stage = "YT3_PUBLICATION_VERIFIED"
