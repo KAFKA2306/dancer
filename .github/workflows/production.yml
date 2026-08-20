@@ -1,4 +1,4 @@
-name: Autonomous production smoke
+name: Autonomous production
 
 on:
   workflow_dispatch:
@@ -14,26 +14,97 @@ permissions:
 jobs:
   production:
     runs-on: ubuntu-latest
+    env:
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+      DANCER_YOUTUBE_PROFILE: ${{ vars.DANCER_YOUTUBE_PROFILE || 'byosan' }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           version: "0.12.1"
           enable-cache: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.9"
+      - name: Install Task
+        uses: go-task/setup-task@v2
+        with:
+          version: "3.52.0"
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg xvfb
       - run: uv sync --locked --no-dev
-      - name: Produce and audit one vertical dance
+      - name: Prepare authenticated YT3 publication
+        id: yt3
+        shell: bash
         run: |
-          xvfb-run -a uv run --frozen --no-dev dancer production \
-            --output-dir output \
-            --motion-id auto \
-            --audio-id auto \
-            --duration-seconds 4 \
-            --fps 8 \
-            --width 180 \
-            --height 320 \
-            --candidates 3 > output-result.json
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "reason=PR_EXTERNAL_SIDE_EFFECTS_DISABLED" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ -z "$YOUTUBE_CLIENT_ID" || -z "$YOUTUBE_CLIENT_SECRET" || -z "$YOUTUBE_REFRESH_TOKEN" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "reason=YOUTUBE_CREDENTIALS_MISSING" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git clone --depth 1 https://github.com/KAFKA2306/yt3.git "$RUNNER_TEMP/yt3"
+          bun install --cwd "$RUNNER_TEMP/yt3" --frozen-lockfile
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          echo "root=$RUNNER_TEMP/yt3" >> "$GITHUB_OUTPUT"
+          echo "reason=AUTHENTICATED" >> "$GITHUB_OUTPUT"
+      - name: Produce, audit, and publish when authenticated
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(
+            production
+            --output-dir output
+            --motion-id auto
+            --audio-id auto
+            --duration-seconds 4
+            --fps 8
+            --width 180
+            --height 320
+            --candidates 3
+          )
+          if [[ "${{ steps.yt3.outputs.enabled }}" == "true" ]]; then
+            args+=(
+              --yt3-root "${{ steps.yt3.outputs.root }}"
+              --publish-profile "$DANCER_YOUTUBE_PROFILE"
+            )
+          fi
+          xvfb-run -a uv run --frozen --no-dev dancer "${args[@]}" > output-result.json
+      - name: Record publication boundary
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          enabled = "${{ steps.yt3.outputs.enabled }}" == "true"
+          reason = "${{ steps.yt3.outputs.reason }}" or "UNKNOWN"
+          event = os.environ.get("GITHUB_EVENT_NAME", "")
+          if event == "pull_request":
+              status = "EXTERNAL_SIDE_EFFECTS_DISABLED"
+          elif enabled:
+              status = "PUBLICATION_ATTEMPTED"
+          else:
+              status = "PUBLICATION_BLOCKED"
+          payload = {
+              "status": status,
+              "reason": reason,
+              "profile": os.environ.get("DANCER_YOUTUBE_PROFILE"),
+              "credentials_in_artifact": False,
+              "workflow_run_id": os.environ.get("GITHUB_RUN_ID"),
+          }
+          Path("publication-state.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+          PY
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: autonomous-production-${{ github.run_id }}
           path: |
@@ -41,5 +112,6 @@ jobs:
             output/runs/**/presentation/*
             output/runs/**/candidates/**/audit.json
             output-result.json
-          if-no-files-found: error
+            publication-state.json
+          if-no-files-found: warn
           retention-days: 30
