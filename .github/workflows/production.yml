@@ -64,11 +64,11 @@ jobs:
             --output-dir output
             --motion-id auto
             --audio-id auto
-            --duration-seconds 4
-            --fps 8
+            --duration-seconds 2
+            --fps 6
             --width 180
             --height 320
-            --candidates 3
+            --candidates 2
           )
           if [[ "${{ steps.yt3.outputs.enabled }}" == "true" ]]; then
             args+=(
