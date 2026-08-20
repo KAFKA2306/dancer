@@ -1,0 +1,43 @@
+name: Autonomous production smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "27 9 * * *"
+      timezone: "Asia/Tokyo"
+
+permissions:
+  contents: read
+
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.1"
+          enable-cache: true
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg xvfb
+      - run: uv sync --locked --no-dev
+      - name: Produce and audit one vertical dance
+        run: |
+          xvfb-run -a uv run --frozen --no-dev dancer production \
+            --output-dir output \
+            --motion-id auto \
+            --audio-id auto \
+            --duration-seconds 4 \
+            --fps 8 \
+            --width 180 \
+            --height 320 \
+            --candidates 3 > output-result.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: autonomous-production-${{ github.run_id }}
+          path: |
+            output/runs/**/manifest.json
+            output/runs/**/presentation/*
+            output/runs/**/candidates/**/audit.json
+            output-result.json
+          if-no-files-found: error
+          retention-days: 30
