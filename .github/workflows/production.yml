@@ -103,6 +103,37 @@ jobs:
           }
           Path("publication-state.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
           PY
+      - name: Secret-scan generated JSON evidence
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          forbidden_key = re.compile(r'(?i)(client[_-]?secret|refresh[_-]?token|access[_-]?token|authorization|cookie)')
+          secret_values = [
+              value
+              for value in (
+                  os.environ.get("YOUTUBE_CLIENT_SECRET", ""),
+                  os.environ.get("YOUTUBE_REFRESH_TOKEN", ""),
+              )
+              if len(value) >= 8
+          ]
+          files = list(Path("output").glob("runs/**/*.json")) if Path("output").exists() else []
+          files += [path for path in (Path("output-result.json"), Path("publication-state.json")) if path.exists()]
+          violations = []
+          for path in files:
+              text = path.read_text(encoding="utf-8", errors="strict")
+              if forbidden_key.search(text):
+                  violations.append(f"{path}: forbidden credential key")
+              if any(secret in text for secret in secret_values):
+                  violations.append(f"{path}: secret value present")
+          if violations:
+              raise SystemExit("Generated artifact secret scan failed: " + "; ".join(violations))
+          print(f"secret scan passed for {len(files)} JSON evidence files")
+          PY
       - uses: actions/upload-artifact@v7
         if: always()
         with:
