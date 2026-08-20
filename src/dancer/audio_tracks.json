@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "tracks": [
+    {
+      "id": "maple_leaf_rag_pd_120",
+      "title": "Maple Leaf Rag",
+      "creator": "Pracchia-78; composition by Scott Joplin",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/09/Scott_Joplin_-_Maple_Leaf_Rag.ogg",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:Scott_Joplin_-_Maple_Leaf_Rag.ogg",
+      "license_name": "Public domain dedication by the recording copyright holder",
+      "license_url": "https://commons.wikimedia.org/w/index.php?title=File:Scott_Joplin_-_Maple_Leaf_Rag.ogg&oldid=1007511544#Licensing",
+      "source_sha1": "10c3bd2bd24db136fa659e07249e6a54a7a94f4f",
+      "source_size_bytes": 3673778,
+      "bpm": 120.0,
+      "first_beat_offset_seconds": 0.0,
+      "attribution_required": false,
+      "commercial_use": true
+    }
+  ]
+}
