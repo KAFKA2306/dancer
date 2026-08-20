@@ -12,7 +12,7 @@
       "source_sha1": "10c3bd2bd24db136fa659e07249e6a54a7a94f4f",
       "source_size_bytes": 3673778,
       "bpm": 120.0,
-      "first_beat_offset_seconds": 0.0,
+      "beat_grid_origin": "first_non_silent_audio",
       "attribution_required": false,
       "commercial_use": true
     }
