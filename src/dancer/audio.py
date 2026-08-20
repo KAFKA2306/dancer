@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import urllib.request
@@ -26,7 +27,7 @@ class AudioTrack:
     source_sha1: str
     source_size_bytes: int
     bpm: float
-    first_beat_offset_seconds: float
+    beat_grid_origin: str
     attribution_required: bool
     commercial_use: bool
 
@@ -37,6 +38,7 @@ class AudioArtifact:
     sha256: str
     source_sha1: str
     size_bytes: int
+    playback_start_offset_seconds: float
     track: AudioTrack
 
 
@@ -61,6 +63,8 @@ def load_audio_catalog() -> list[AudioTrack]:
     for track in tracks:
         if track.bpm <= 0:
             raise ValueError(f"audio track has invalid BPM: {track.id}")
+        if track.beat_grid_origin != "first_non_silent_audio":
+            raise ValueError(f"unsupported beat grid origin for {track.id}")
         if not track.commercial_use:
             raise ValueError(f"audio track is not cleared for commercial use: {track.id}")
         if not track.source_url.startswith("https://"):
@@ -86,7 +90,46 @@ def get_audio_track(track_id: str) -> AudioTrack:
     raise ValueError(f"unknown audio track id: {track_id}")
 
 
-def materialize_audio(track: AudioTrack, destination: str | Path) -> AudioArtifact:
+def detect_leading_silence(
+    path: str | Path,
+    *,
+    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+) -> float:
+    result = runner(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-nostats",
+            "-i",
+            str(path),
+            "-af",
+            "silencedetect=noise=-45dB:d=0.10",
+            "-f",
+            "null",
+            "-",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    stderr = result.stderr or ""
+    starts = [float(value) for value in re.findall(r"silence_start:\s*([0-9.]+)", stderr)]
+    ends = [float(value) for value in re.findall(r"silence_end:\s*([0-9.]+)", stderr)]
+    if not starts or starts[0] > 0.02:
+        return 0.0
+    if not ends:
+        raise ValueError("audio begins with silence but no audible start was detected")
+    # Start just after FFmpeg's measured leading silence boundary. The exact source
+    # is hash-pinned, so this value is reproducible and is recorded in provenance.
+    return round(ends[0] + 0.02, 6)
+
+
+def materialize_audio(
+    track: AudioTrack,
+    destination: str | Path,
+    *,
+    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+) -> AudioArtifact:
     path = Path(destination)
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
@@ -106,11 +149,13 @@ def materialize_audio(track: AudioTrack, destination: str | Path) -> AudioArtifa
         raise ValueError(
             f"audio SHA-1 mismatch for {track.id}: expected {track.source_sha1}, got {source_sha1}"
         )
+    playback_start_offset_seconds = detect_leading_silence(path, runner=runner)
     return AudioArtifact(
         path=str(path.resolve()),
         sha256=_digest(path, "sha256"),
         source_sha1=source_sha1,
         size_bytes=size_bytes,
+        playback_start_offset_seconds=playback_start_offset_seconds,
         track=track,
     )
 
@@ -146,6 +191,8 @@ def mux_audio(
             str(video_path),
             "-stream_loop",
             "-1",
+            "-ss",
+            f"{audio.playback_start_offset_seconds:.6f}",
             "-i",
             audio.path,
             "-filter:a",
@@ -179,6 +226,7 @@ def track_provenance(audio: AudioArtifact) -> dict[str, object]:
         {
             "materialized_sha256": audio.sha256,
             "materialized_size_bytes": audio.size_bytes,
+            "playback_start_offset_seconds": audio.playback_start_offset_seconds,
         }
     )
     return payload
