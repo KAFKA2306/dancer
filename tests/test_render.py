@@ -2,7 +2,7 @@ import json
 import pathlib
 import subprocess
 
-from dancer.dance_renderer import IMAGE2OUTFIT_COMMIT, SIROINO_PATH
+from dancer.dance_renderer import IMAGE2OUTFIT_COMMIT, SIROINO_PATH, SIROINO_TERMS_URL
 from dancer.video_generation import generate_video
 
 
@@ -23,9 +23,13 @@ def test_real_siroino_render_uses_public_motion_and_is_valid_mp4(tmp_path):
     assert artifact.width == 128
     assert artifact.height == 128
     assert artifact.duration_seconds == 1.0
+    assert artifact.fps == 6.0
     assert artifact.generator == "Blender"
     assert artifact.generator_version == "4.5.12 LTS"
     assert artifact.motion_id == "93_03"
+    assert artifact.avatar_license == "CC0-1.0"
+    assert artifact.avatar_terms_url == SIROINO_TERMS_URL
+    assert artifact.camera_preset == "front"
     assert (
         "/09a07f54f3bbb58797325f009282d0b2048a2871/data/093/93_03.bvh"
         in artifact.motion_source_url
