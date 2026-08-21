@@ -2,3 +2,9 @@ __pycache__/
 .pytest_cache/
 .venv/
 output/
+
+# Local batch-render artifacts and downloaded source media.
+*.mp4
+*.ogg
+*.fbx
+*.bvh

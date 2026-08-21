@@ -9,17 +9,25 @@ from dataclasses import asdict
 
 from .motion_catalog import load_catalog
 from .production import run_production
-from .video_generation import generate_video
+from .video_generation import generate_all_videos, generate_video
 
 
 def _render_main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(prog="dancer")
     parser.add_argument("--list-motions", action="store_true")
+    parser.add_argument(
+        "--all",
+        "--all-motions",
+        dest="all_motions",
+        action="store_true",
+        help="render every motion in the pinned catalog",
+    )
     parser.add_argument("--motion-id", default="auto")
     parser.add_argument("--output-dir")
     parser.add_argument("--duration-seconds", type=float)
     parser.add_argument("--fps", type=int)
     parser.add_argument("--size", type=int)
+    parser.add_argument("--samples", type=int, default=64)
     args = parser.parse_args(argv)
 
     if args.list_motions:
@@ -28,12 +36,23 @@ def _render_main(argv: list[str]) -> None:
     for name in ("output_dir", "duration_seconds", "fps", "size"):
         if getattr(args, name) is None:
             parser.error(f"--{name.replace('_', '-')} is required unless --list-motions is used")
+    if args.all_motions:
+        artifacts = generate_all_videos(
+            args.output_dir,
+            duration_seconds=args.duration_seconds,
+            fps=args.fps,
+            size=args.size,
+            samples=args.samples,
+        )
+        print(json.dumps([asdict(artifact) for artifact in artifacts], sort_keys=True))
+        return
     artifact = generate_video(
         args.output_dir,
         motion_id=args.motion_id,
         duration_seconds=args.duration_seconds,
         fps=args.fps,
         size=args.size,
+        samples=args.samples,
     )
     print(json.dumps(asdict(artifact), sort_keys=True))
 

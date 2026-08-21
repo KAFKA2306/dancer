@@ -19,6 +19,19 @@ uv run --frozen dancer \
 
 `--motion-id auto` はUTC日付から1件を決定的に選び、102件を循環します。
 
+カタログ内の102件をまとめて作成する場合は、各動画を
+`output/motions/<motion-id>/dance.mp4` に分けて保存します。
+
+```bash
+uv run --frozen dancer \
+  --all \
+  --output-dir output \
+  --duration-seconds 2 \
+  --fps 24 \
+  --size 512 \
+  --samples 8
+```
+
 ## Autonomous production
 
 ```bash

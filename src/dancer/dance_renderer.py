@@ -187,11 +187,15 @@ def _configure_scene(
     width: int,
     height: int,
     camera_preset: str,
+    samples: int,
 ) -> tuple[bpy.types.Object, Vector, Vector, float]:
     if camera_preset not in CAMERA_PRESETS:
         raise ValueError(f"unknown camera preset: {camera_preset}")
     scene = bpy.context.scene
     scene.render.engine = "BLENDER_EEVEE_NEXT"
+    if samples <= 0:
+        raise ValueError("samples must be positive")
+    scene.eevee.taa_render_samples = samples
     scene.render.resolution_x = width
     scene.render.resolution_y = height
     scene.render.resolution_percentage = 100
@@ -344,6 +348,7 @@ def render_dance(
     width: int | None = None,
     height: int | None = None,
     camera_preset: str = "front",
+    samples: int = 64,
 ) -> tuple[str, DanceMotion, RenderEvidence]:
     if duration_seconds <= 0:
         raise ValueError("duration_seconds must be positive")
@@ -385,6 +390,7 @@ def render_dance(
         width=width,
         height=height,
         camera_preset=camera_preset,
+        samples=samples,
     )
 
     frame_count = max(2, round(duration_seconds * fps))

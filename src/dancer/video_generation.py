@@ -5,13 +5,21 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 from dataclasses import dataclass
 from typing import Callable
 
 import bpy
 
-from .dance_renderer import IMAGE2OUTFIT_COMMIT, SIROINO_LICENSE, SIROINO_TERMS_URL, SIROINO_URL, render_dance
+from .dance_renderer import (
+    IMAGE2OUTFIT_COMMIT,
+    SIROINO_LICENSE,
+    SIROINO_TERMS_URL,
+    SIROINO_URL,
+    render_dance,
+)
+from .motion_catalog import load_catalog
 
 
 @dataclass(frozen=True)
@@ -120,6 +128,7 @@ def generate_video(
     width: int | None = None,
     height: int | None = None,
     camera_preset: str = "front",
+    samples: int = 64,
     probe_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> GeneratedArtifact:
     rendered_path, motion, render_evidence = render_dance(
@@ -131,6 +140,7 @@ def generate_video(
         width=width,
         height=height,
         camera_preset=camera_preset,
+        samples=samples,
     )
     return _probe_video(
         rendered_path,
@@ -141,3 +151,55 @@ def generate_video(
         camera_max_step_per_frame=render_evidence.camera_max_step_per_frame,
         runner=probe_runner,
     )
+
+
+def generate_all_videos(
+    output_dir: str | os.PathLike[str],
+    *,
+    duration_seconds: float,
+    fps: int,
+    size: int,
+    camera_preset: str = "front",
+    samples: int = 8,
+) -> list[GeneratedArtifact]:
+    """Render one video for every motion in the pinned catalog.
+
+    Each motion gets its own directory so the resulting catalog is easy to audit.
+    Valid existing MP4s are probed and reused, allowing interrupted batches to
+    resume without rerendering completed motions.
+    """
+    root = os.fspath(output_dir)
+    artifacts: list[GeneratedArtifact] = []
+    for motion in load_catalog():
+        motion_dir = os.path.join(root, "motions", motion.id)
+        existing_path = os.path.join(motion_dir, "dance.mp4")
+        if os.path.isfile(existing_path):
+            try:
+                artifacts.append(
+                    _probe_video(
+                        existing_path,
+                        motion_id=motion.id,
+                        motion_source_url=motion.url,
+                        camera_preset=camera_preset,
+                        framing_margin=0.0,
+                        camera_max_step_per_frame=0.0,
+                    )
+                )
+                continue
+            except (OSError, KeyError, StopIteration, ValueError):
+                pass
+        stale_work = os.path.join(motion_dir, "siroino-render")
+        if os.path.isdir(stale_work):
+            shutil.rmtree(stale_work)
+        artifacts.append(
+            generate_video(
+                motion_dir,
+                motion_id=motion.id,
+                duration_seconds=duration_seconds,
+                fps=fps,
+                size=size,
+                camera_preset=camera_preset,
+                samples=samples,
+            )
+        )
+    return artifacts
