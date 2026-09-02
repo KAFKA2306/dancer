@@ -21,3 +21,10 @@ jobs:
       - run: uv sync --locked
       - run: uv run --frozen python -m compileall -q src tests
       - run: xvfb-run -a uv run --frozen pytest -q
+      - name: Keep one scheduled production authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .github/workflows/render-catalog-motion.yml
+          grep -q 'schedule:' .github/workflows/production.yml
+          grep -q 'dancer "${args\[@\]}"' .github/workflows/production.yml
