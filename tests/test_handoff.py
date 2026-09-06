@@ -21,7 +21,7 @@ class FakeYt3Runner:
             return subprocess.CompletedProcess(
                 command,
                 0,
-                stdout="f22d2fc2a823703344da7a5cf44ee2b8a6b2a42c\\n",
+                stdout="f22d2fc2a823703344da7a5cf44ee2b8a6b2a42c\n",
                 stderr="",
             )
         if command[:2] == ["bun", "src/scripts/import_dancer_artifact.ts"]:
