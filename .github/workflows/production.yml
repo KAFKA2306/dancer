@@ -20,6 +20,7 @@ jobs:
       YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
       YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
       DANCER_YOUTUBE_PROFILE: ${{ vars.DANCER_YOUTUBE_PROFILE || 'byosan' }}
+      YT3_REVISION: "f22d2fc2a823703344da7a5cf44ee2b8a6b2a42c"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
@@ -50,10 +51,14 @@ jobs:
             echo "reason=YOUTUBE_CREDENTIALS_MISSING" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git clone --depth 1 https://github.com/KAFKA2306/yt3.git "$RUNNER_TEMP/yt3"
+          git clone --filter=blob:none --no-checkout https://github.com/KAFKA2306/yt3.git "$RUNNER_TEMP/yt3"
+          git -C "$RUNNER_TEMP/yt3" fetch --depth=1 origin "$YT3_REVISION"
+          git -C "$RUNNER_TEMP/yt3" checkout --detach "$YT3_REVISION"
+          test "$(git -C "$RUNNER_TEMP/yt3" rev-parse HEAD)" = "$YT3_REVISION"
           bun install --cwd "$RUNNER_TEMP/yt3" --frozen-lockfile
           echo "enabled=true" >> "$GITHUB_OUTPUT"
           echo "root=$RUNNER_TEMP/yt3" >> "$GITHUB_OUTPUT"
+          echo "revision=$YT3_REVISION" >> "$GITHUB_OUTPUT"
           echo "reason=AUTHENTICATED" >> "$GITHUB_OUTPUT"
       - name: Produce, audit, and publish when authenticated
         id: produce
@@ -165,6 +170,8 @@ jobs:
               "status": status,
               "reason": reason,
               "profile": os.environ.get("DANCER_YOUTUBE_PROFILE"),
+              "dancer_revision": os.environ.get("GITHUB_SHA"),
+              "yt3_revision": "${{ steps.yt3.outputs.revision }}",
               "last_completed_stage": last_completed_stage,
               "failure_kind": failure_kind,
               "failure_reason": failure_reason,
