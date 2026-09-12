@@ -20,6 +20,7 @@ jobs:
       YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
       YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
       DANCER_YOUTUBE_PROFILE: ${{ vars.DANCER_YOUTUBE_PROFILE || 'byosan' }}
+      YT3_REVISION: "e5f393adc68014a6c8182aaba947066942113690"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
@@ -40,6 +41,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo "revision=$YT3_REVISION" >> "$GITHUB_OUTPUT"
           if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "reason=PR_EXTERNAL_SIDE_EFFECTS_DISABLED" >> "$GITHUB_OUTPUT"
@@ -50,7 +52,19 @@ jobs:
             echo "reason=YOUTUBE_CREDENTIALS_MISSING" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git clone --depth 1 https://github.com/KAFKA2306/yt3.git "$RUNNER_TEMP/yt3"
+          if [[ ! "$YT3_REVISION" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid YT3_REVISION: expected full 40-character commit SHA" >&2
+            exit 1
+          fi
+          git init "$RUNNER_TEMP/yt3"
+          git -C "$RUNNER_TEMP/yt3" remote add origin https://github.com/KAFKA2306/yt3.git
+          git -C "$RUNNER_TEMP/yt3" fetch --depth 1 origin "$YT3_REVISION"
+          git -C "$RUNNER_TEMP/yt3" checkout --detach "$YT3_REVISION"
+          actual_revision="$(git -C "$RUNNER_TEMP/yt3" rev-parse HEAD)"
+          if [[ "$actual_revision" != "$YT3_REVISION" ]]; then
+            echo "YT3 checkout mismatch: expected $YT3_REVISION, got $actual_revision" >&2
+            exit 1
+          fi
           bun install --cwd "$RUNNER_TEMP/yt3" --frozen-lockfile
           echo "enabled=true" >> "$GITHUB_OUTPUT"
           echo "root=$RUNNER_TEMP/yt3" >> "$GITHUB_OUTPUT"
@@ -106,6 +120,7 @@ jobs:
           python - <<'PY'
           import json
           import os
+          import re
           from pathlib import Path
 
           enabled = "${{ steps.yt3.outputs.enabled }}" == "true"
@@ -113,6 +128,13 @@ jobs:
           exit_code_text = "${{ steps.produce.outputs.exit_code }}"
           exit_code = int(exit_code_text) if exit_code_text.isdigit() else None
           event = os.environ.get("GITHUB_EVENT_NAME", "")
+          dancer_revision = os.environ.get("GITHUB_SHA", "")
+          yt3_revision = os.environ.get("YT3_REVISION", "")
+          sha40 = re.compile(r"^[0-9a-f]{40}$")
+          if not sha40.fullmatch(dancer_revision):
+              raise SystemExit("GITHUB_SHA is not a full commit SHA")
+          if not sha40.fullmatch(yt3_revision):
+              raise SystemExit("YT3_REVISION is not a full commit SHA")
 
           manifests = list(Path("output").glob("runs/**/manifest.json")) if Path("output").exists() else []
           audits = list(Path("output").glob("runs/**/candidates/**/audit.json")) if Path("output").exists() else []
@@ -130,6 +152,17 @@ jobs:
                   if isinstance(candidate, dict) and candidate.get("run_id"):
                       result = candidate
                       break
+
+          for manifest_path in manifests:
+              manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+              publication = dict(manifest.get("publication") or {})
+              publication["dancer_revision"] = dancer_revision
+              publication["yt3_revision"] = yt3_revision
+              manifest["publication"] = publication
+              manifest_path.write_text(
+                  json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True),
+                  encoding="utf-8",
+              )
 
           if result and result.get("publish_status") == "published_or_scheduled":
               last_completed_stage = "YT3_PUBLICATION_VERIFIED"
@@ -165,6 +198,8 @@ jobs:
               "status": status,
               "reason": reason,
               "profile": os.environ.get("DANCER_YOUTUBE_PROFILE"),
+              "dancer_revision": dancer_revision,
+              "yt3_revision": yt3_revision,
               "last_completed_stage": last_completed_stage,
               "failure_kind": failure_kind,
               "failure_reason": failure_reason,
