@@ -74,6 +74,8 @@ uv run --frozen dancer production \
 
 `--publish-profile` は `byosan | yawa | humanity` の明示指定が必須です。dancer自身はYouTube tokenやchannel routingを持たず、YT3のprofile/channel identity check、private staging、thumbnail、publish receipt、visibility verificationを使います。公開予約は `--publish-at 2026-08-21T12:00:00+09:00` のように指定できます。
 
+GitHub Actions の production workflow は YT3 を mutable `main` から実行せず、workflow に記録した full commit SHA だけを fetch/checkout します。生成される dancer manifest の `publication` と `publication-state.json` には dancer revision と YT3 revision の両方を保存し、公開結果から実行コードを追跡できます。Pull Request では YT3 checkout と外部公開を実行しません。
+
 YouTube OAuth client、refresh token、API project auditなど外部側の条件が成立しない場合、publishは成功扱いにしません。
 
 ## Source rights
