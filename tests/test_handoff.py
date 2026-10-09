@@ -17,6 +17,13 @@ class FakeYt3Runner:
 
     def __call__(self, command, **kwargs):
         self.commands.append((command, kwargs))
+        if command == ["git", "rev-parse", "HEAD"]:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout="f22d2fc2a823703344da7a5cf44ee2b8a6b2a42c\n",
+                stderr="",
+            )
         if command[:2] == ["bun", "src/scripts/import_dancer_artifact.ts"]:
             payload = {
                 "run_id": "byosan_money/dancer-fixture",
@@ -67,10 +74,12 @@ def test_offline_yt3_handoff_tracks_run_video_and_receipt(tmp_path):
 
     assert result["status"] == "published_or_scheduled"
     assert result["run_id"] == "byosan_money/dancer-fixture"
+    assert result["yt3_revision"] == "f22d2fc2a823703344da7a5cf44ee2b8a6b2a42c"
     assert result["youtube"]["video_id"] == "video-fixture"
-    import_command = runner.commands[0][0]
+    assert runner.commands[0][0] == ["git", "rev-parse", "HEAD"]
+    import_command = runner.commands[1][0]
     assert import_command[-2:] == [str(manifest), "byosan"]
-    publish_command = runner.commands[1][0]
+    publish_command = runner.commands[2][0]
     assert publish_command == [
         "task",
         "publish",

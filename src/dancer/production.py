@@ -401,6 +401,20 @@ def _handoff_to_yt3(
         raise ValueError("YT3 profile must be one of: byosan, yawa, humanity")
     if not (yt3_root / "Taskfile.yml").is_file():
         raise FileNotFoundError(f"YT3 Taskfile not found under {yt3_root}")
+    revision_result = runner(
+        ["git", "rev-parse", "HEAD"],
+        cwd=yt3_root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    yt3_revision = revision_result.stdout.strip()
+    if len(yt3_revision) != 40 or any(
+        ch not in "0123456789abcdef" for ch in yt3_revision.lower()
+    ):
+        raise RuntimeError(
+            f"YT3 checkout revision is not a full commit SHA: {yt3_revision!r}"
+        )
     imported = runner(
         [
             "bun",
@@ -451,6 +465,7 @@ def _handoff_to_yt3(
         "status": "published_or_scheduled",
         "profile": profile,
         "run_id": run_id,
+        "yt3_revision": yt3_revision,
         "yt3_receipt_path": str(yt3_receipt.resolve()),
         "youtube": youtube,
     }
