@@ -8,15 +8,22 @@ from dancer.production import _handoff_to_yt3
 
 
 class FakeYt3Runner:
-    def __init__(self, yt3_root: Path, *, write_receipt: bool = True):
+    def __init__(
+        self, yt3_root: Path, *, write_receipt: bool = True, revision: str = "a" * 40
+    ):
         self.yt3_root = yt3_root
         self.write_receipt = write_receipt
+        self.revision = revision
         self.commands = []
         self.run_dir = yt3_root / "runs" / "byosan_money" / "dancer-fixture"
         self.video_path = str((yt3_root / "fixture-video.mp4").resolve())
 
     def __call__(self, command, **kwargs):
         self.commands.append((command, kwargs))
+        if command == ["git", "rev-parse", "HEAD"]:
+            return subprocess.CompletedProcess(
+                command, 0, stdout=self.revision + "\n", stderr=""
+            )
         if command[:2] == ["bun", "src/scripts/import_dancer_artifact.ts"]:
             payload = {
                 "run_id": "byosan_money/dancer-fixture",
@@ -68,9 +75,11 @@ def test_offline_yt3_handoff_tracks_run_video_and_receipt(tmp_path):
     assert result["status"] == "published_or_scheduled"
     assert result["run_id"] == "byosan_money/dancer-fixture"
     assert result["youtube"]["video_id"] == "video-fixture"
-    import_command = runner.commands[0][0]
+    assert result["yt3_revision"] == "a" * 40
+    assert runner.commands[0][0] == ["git", "rev-parse", "HEAD"]
+    import_command = runner.commands[1][0]
     assert import_command[-2:] == [str(manifest), "byosan"]
-    publish_command = runner.commands[1][0]
+    publish_command = runner.commands[2][0]
     assert publish_command == [
         "task",
         "publish",
@@ -96,3 +105,23 @@ def test_offline_yt3_handoff_rejects_missing_publish_receipt(tmp_path):
             profile="byosan",
             runner=runner,
         )
+
+
+def test_offline_yt3_handoff_rejects_invalid_checkout_before_import(tmp_path):
+    yt3_root = tmp_path / "yt3"
+    yt3_root.mkdir()
+    (yt3_root / "Taskfile.yml").write_text("version: '3'\n", encoding="utf-8")
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text("{}", encoding="utf-8")
+    runner = FakeYt3Runner(yt3_root, revision="main")
+
+    with pytest.raises(RuntimeError, match="full lowercase commit SHA"):
+        _handoff_to_yt3(
+            manifest_path=manifest,
+            yt3_root=yt3_root,
+            profile="byosan",
+            runner=runner,
+        )
+    assert [command for command, _ in runner.commands] == [
+        ["git", "rev-parse", "HEAD"]
+    ]
